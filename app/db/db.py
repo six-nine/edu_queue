@@ -5,7 +5,7 @@ import psycopg2
 import psycopg2.pool
 import typing as tp
 
-from ..models import *
+from ..models.models import *
 
 class Database:
     def __init__(self, *, dbname: str, user: str, password: str, host: str, port: int, debug: bool = False):
@@ -38,6 +38,7 @@ class Database:
                            CREATE TABLE IF NOT EXISTS labs (
                                id TEXT PRIMARY KEY,
                                group_id TEXT NOT NULL REFERENCES groups(id),
+                               name TEXT NOT NULL,
                                deadline TIMESTAMPTZ NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS labs_group_id ON labs(group_id);
@@ -99,12 +100,12 @@ class Database:
                     (%s, %s, %s);
                     '''
             if len(group.labs) > 0:
-                query += '''INSERT INTO labs(id, group_id, deadline) VALUES'''
+                query += '''INSERT INTO labs(id, group_id, name, deadline) VALUES'''
                 for i in range(len(group.labs)):
                     lab = group.labs[i]
                     if i != 0:
                         query += ', '
-                    query += "('" + lab.id + "', '" + group.id + "', '" + lab.deadline.astimezone().isoformat() + "')"
+                    query += "('" + lab.id + "', '" + group.id + "', '" + lab.name + "', '" + lab.deadline.astimezone().isoformat() + "')"
                 query += ';'
             cursor.execute(query, (group.id, group.owner_id, group.name))
             psql_connection.commit()
