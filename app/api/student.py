@@ -11,13 +11,13 @@ class Student:
         self.is_subscribed_review_queue_enroll_start_notifications = True
 
 
-    def join_group(self, invite_code: int) -> None:
+    def join_group(self, invite_code: str) -> None:
         bool_result = self.database.join_group(invite_code, self.student_tg_id)
         if not bool_result:
             logging.error(f"Failed attempt to join student with student_tg_id = {self.student_tg_id} in group with invite_code (group_id) = {invite_code}")
 
 
-    def leave_group(self, invite_code: int) -> None:
+    def leave_group(self, invite_code: str) -> None:
         bool_result = self.database.quit_group(invite_code, self.student_tg_id)
         if not bool_result:
             logging.error(f"Failed attempt to remove student with student_tg_id = {self.student_tg_id} from group with invite_code (group_id) = {invite_code}")
