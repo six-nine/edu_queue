@@ -35,39 +35,33 @@ class Teacher:
         pass
 
     """
-    Adds a new `lab` to the `group.
+    Adds a new `lab` to the `group`.
     """
     def add_lab(self, group: BriefGroup, lab: Lab):
         pass
 
     """
-    Creates and adds the class with queue for labs pass.
+    Creates and adds the `queue` for labs review to the `group`.
     """
-    def add_class(self, cls: Queue):
-        pass
-
-    """
-    Creates and adds the class with queue for labs pass.
-    """
-    def add_class(self, cls: BriefGroup):
+    def add_queue(self, queue: Queue, group: BriefGroup):
         pass
 
     """
     Cancels the class and erases queue on it.
     """
-    def cancel_class(self, cls: Queue):
+    def cancel_queue(self, queue: Queue):
         pass
 
     """
     Replaces the `old` queue with `new` one.
     """
-    def update_class(self, old: Queue, new: Queue):
+    def update_queue(self, old: Queue, new: Queue):
         pass
 
     """
-    :return: list of all classes (queues).
+    :return: list of all queues.
     """
-    def get_all_classes(self) -> List[Queue]:
+    def get_all_queues(self) -> List[Queue]:
         pass
 
     """
@@ -96,9 +90,9 @@ class Teacher:
         pass
     
     """
-    Finished current class if it was started.
+    Finishes current class and clears queue if it was started.
     """
-    def finish_class():
+    def finish_queue():
         pass
 
     """
