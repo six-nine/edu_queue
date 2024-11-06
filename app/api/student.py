@@ -4,8 +4,8 @@ class Student:
 
     def __init__(self, student_tg_name):
         self.student_tg_name = student_tg_name
-        self.groups = []
-        self.review_queues = []
+        self.groups = {} # group_name <-> group
+        self.review_queues = [] # review_name <-> review
 
 
     def join_group(self, group_name, invite_code):
