@@ -1,40 +1,48 @@
+import logging
+import typing as tp
+from db.db import Database, BriefQueue, Queue, ComparatorType
 
 
 class Student:
 
-    def __init__(self, student_tg_name):
-        self.student_tg_name = student_tg_name
-        self.groups = {} # group_name <-> group
-        self.review_queues = [] # review_name <-> review
+    def __init__(self, student_tg_id: int, database: Database) -> None:
+        self.student_tg_id = student_tg_id
+        self.database = database
+        self.is_subscribed_review_queue_enroll_start_notifications = True
 
 
-    def join_group(self, group_name, invite_code):
+    def join_group(self, invite_code: int) -> None:
+        bool_result = self.database.join_group(invite_code, self.student_tg_id)
+        if not bool_result:
+            logging.error(f"Failed attempt to join student with student_tg_id = {self.student_tg_id} in group with invite_code (group_id) = {invite_code}")
+
+
+    def leave_group(self, group_name: str) -> None:
         pass
 
 
-    def leave_group(self, group_name):
+    # def subscribe_review_queue_enroll_start_notifications(self):
+    #     self.is_subscribed_review_queue_enroll_start_notifications = True
+    #     # INSERT INTO "notification subscribers table"
+
+
+    # def unsubscribe_review_queue_enroll_start_notifications(self):
+    #     self.is_subscribed_review_queue_enroll_start_notifications = False
+    #     # DELETE FROM "notification subscribers table"
+
+
+    def enroll_on_review_queue(self, queue_id: str):
         pass
 
 
-    def subscribe_review_enroll_start_notifications(self):
+    def reject_review_queue(self, queue_id: str):
         pass
 
 
-    def unsubscribe_review_enroll_start_notifications(self):
-        pass
+    def get_current_review_queues(self) -> tp.List[BriefQueue]:
+        return self.database.get_student_queues(self.student_tg_id)
 
 
-    def enroll_on_review(self, group_name, review_name):
-        pass
-
-
-    def reject_review(self, group_name, review_name):
-        pass
-
-
-    def get_current_review_queues(self):
-        pass
-
-
-    def get_review_queue_rules(self, review_name):
-        pass
+    def get_review_queue_rules(self, queue_id: str) -> tp.List[str]:
+        queue_obj = self.database.get_queue(queue_id)
+        return [t.name for t in self.database.get_comparator(queue_obj.comparator_id).data]
