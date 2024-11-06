@@ -17,8 +17,10 @@ class Student:
             logging.error(f"Failed attempt to join student with student_tg_id = {self.student_tg_id} in group with invite_code (group_id) = {invite_code}")
 
 
-    def leave_group(self, group_name: str) -> None:
-        pass
+    def leave_group(self, invite_code: int) -> None:
+        bool_result = self.database.quit_group(invite_code, self.student_tg_id)
+        if not bool_result:
+            logging.error(f"Failed attempt to remove student with student_tg_id = {self.student_tg_id} from group with invite_code (group_id) = {invite_code}")
 
 
     # def subscribe_review_queue_enroll_start_notifications(self):
@@ -31,12 +33,12 @@ class Student:
     #     # DELETE FROM "notification subscribers table"
 
 
-    def enroll_on_review_queue(self, queue_id: str):
-        pass
+    def enroll_on_review_queue(self, queue_id: str, lab_id: str):
+        self.database.sign_in_queue(queue_id, self.student_tg_id, lab_id)
 
 
-    def reject_review_queue(self, queue_id: str):
-        pass
+    def reject_review_queue(self, queue_id: str, lab_id: str):
+        self.database.sign_out_queue(queue_id, self.student_tg_id, lab_id)
 
 
     def get_current_review_queues(self) -> tp.List[BriefQueue]:
