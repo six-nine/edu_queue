@@ -3,6 +3,24 @@ import typing as tp
 from db.db import Database, BriefQueue, Queue, ComparatorType
 
 
+class StudentJoinGroupException(Exception):
+    def __init__(self, student_tg_id, invite_code, maxage):
+        self.student_tg_id = student_tg_id
+        self.invite_code = invite_code
+ 
+    def __str__(self):
+        return f"Failed attempt to join student with student_tg_id = {self.student_tg_id} in group with invite_code (group_id) = {self.invite_code}"
+
+
+class StudentLeaveGroupException(Exception):
+    def __init__(self, student_tg_id, invite_code, maxage):
+        self.student_tg_id = student_tg_id
+        self.invite_code = invite_code
+ 
+    def __str__(self):
+        return f"Failed attempt to remove student with student_tg_id = {self.student_tg_id} from group with invite_code (group_id) = {self.invite_code}"
+
+
 class Student:
 
     def __init__(self, student_tg_id: int, database: Database) -> None:
@@ -14,13 +32,13 @@ class Student:
     def join_group(self, invite_code: str) -> None:
         bool_result = self.database.join_group(invite_code, self.student_tg_id)
         if not bool_result:
-            logging.error(f"Failed attempt to join student with student_tg_id = {self.student_tg_id} in group with invite_code (group_id) = {invite_code}")
+            raise StudentJoinGroupException(self.student_tg_id, invite_code)
 
 
     def leave_group(self, invite_code: str) -> None:
         bool_result = self.database.quit_group(invite_code, self.student_tg_id)
         if not bool_result:
-            logging.error(f"Failed attempt to remove student with student_tg_id = {self.student_tg_id} from group with invite_code (group_id) = {invite_code}")
+            raise StudentLeaveGroupException(self.student_tg_id, invite_code)
 
 
     # def subscribe_review_queue_enroll_start_notifications(self):
