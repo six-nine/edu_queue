@@ -1,23 +1,22 @@
-import logging
 import typing as tp
-from db.db import Database, BriefQueue, Queue, ComparatorType
-
+from models.models import BriefQueue
+from db.db import Database
 
 class StudentJoinGroupException(Exception):
-    def __init__(self, student_tg_id, invite_code, maxage):
+    def __init__(self, student_tg_id: int, invite_code: str) -> None:
         self.student_tg_id = student_tg_id
         self.invite_code = invite_code
  
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Failed attempt to join student with student_tg_id = {self.student_tg_id} in group with invite_code (group_id) = {self.invite_code}"
 
 
 class StudentLeaveGroupException(Exception):
-    def __init__(self, student_tg_id, invite_code, maxage):
+    def __init__(self, student_tg_id: int, invite_code: str) -> None:
         self.student_tg_id = student_tg_id
         self.invite_code = invite_code
  
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Failed attempt to remove student with student_tg_id = {self.student_tg_id} from group with invite_code (group_id) = {self.invite_code}"
 
 
@@ -51,11 +50,11 @@ class Student:
     #     # DELETE FROM "notification subscribers table"
 
 
-    def enroll_on_review_queue(self, queue_id: str, lab_id: str):
+    def enroll_on_review_queue(self, queue_id: str, lab_id: str) -> None:
         self.database.sign_in_queue(queue_id, self.student_tg_id, lab_id)
 
 
-    def reject_review_queue(self, queue_id: str, lab_id: str):
+    def reject_review_queue(self, queue_id: str, lab_id: str) -> None:
         self.database.sign_out_queue(queue_id, self.student_tg_id, lab_id)
 
 
