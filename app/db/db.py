@@ -1,6 +1,3 @@
-from datetime import datetime
-from enum import Enum
-import uuid
 import psycopg2
 import psycopg2.pool
 import typing as tp
@@ -111,6 +108,15 @@ class Database:
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return group.id
+
+    def add_new_lab_to_group(self, *, lab: Lab, group_id: str) -> None:
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           INSERT INTO labs(id, group_id, name, deadline) VALUES
+                           (%s, %s, %s, %s)''', (lab.id, group_id, lab.name, lab.deadline.astimezone().isoformat()))
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
 
     def join_group(self, *, group_id: str, student_id: int) -> bool:
         result = True
