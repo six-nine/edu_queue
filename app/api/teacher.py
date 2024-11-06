@@ -1,20 +1,23 @@
+from datetime import datetime
 import logging
 from typing import Optional
 from typing import List
 from app.db.db import Database
 from app.models.models import Queue, Comparator, BriefGroup, Lab, Group
-
+from app.api.exceptions import InvalidFutureTimeException, EduQueueException
 
 class Teacher:
-    def __init__(self, teacher_tg_id: int, db: Database):
-        self.teacher_tg_id = teacher_tg_id
+    def __init__(self, id: int, db: Database):
+        self.id = id
         self.db = db
 
     """
     Creates new empty group.
     """
     def create_group(self, group_name: str) -> BriefGroup:
-        pass
+        groupid = Group(owner_id=self.id, name=group_name, labs=[])
+        self.db.create_group(groupid)
+        return next(group for group in self.db.get_teacher_groups(self.id) if group.id == groupid)
 
     """
     :return: invitation code of the group.
@@ -32,25 +35,36 @@ class Teacher:
     :return: list of all groups.
     """
     def get_all_groups(self) -> List[BriefGroup]:
-        pass
+        self.db.get_teacher_groups(self.id)
 
     """
     Adds a new `lab` to the `group`.
     """
     def add_lab(self, group: BriefGroup, lab: Lab):
-        pass
+        TODO()
 
     """
-    Creates and adds the `queue` for labs review to the `group`.
+    Adds a new `lab` with `name` and `deadline` to the `group`.
     """
-    def add_queue(self, queue: Queue, group: BriefGroup):
-        pass
+    def add_lab(self, group: BriefGroup, name: str, deadline: datetime):
+        if deadline <= datetime.now():
+            raise InvalidFutureTimeException(deadline)
+        TODO()
+
+    """
+    Creates and adds the queue with name `name`, date of review `date`, and `comparator_id` for labs review to the `group`.
+    """
+    def add_queue(self, group: BriefGroup, name: str, date: datetime, comparator_id: str):
+        if date < datetime.now():
+            raise InvalidFutureTimeException(date)
+        queue = Queue(group_id=group.id, name=name, date=date, comparator_id=comparator_id)
+        self.db.create_queue(queue)
 
     """
     Cancels the class and erases queue on it.
     """
-    def cancel_queue(self, queue: Queue):
-        pass
+    def cancel_queue(self, queue_id: str):
+        self.db.delete_queue(queue_id=queue_id)
 
     """
     Replaces the `old` queue with `new` one.
