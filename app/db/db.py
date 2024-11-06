@@ -13,7 +13,7 @@ class Lab:
         self.group_id = group_id
 
 class Group:
-    def __init__(self, *, id: str = None, owner_id: str, name: str, labs: tp.List[Lab]):
+    def __init__(self, *, id: str = None, owner_id: int, name: str, labs: tp.List[Lab]):
         self.id = id if id is not None else str(uuid.uuid4())
         self.owner_id = owner_id
         self.name = name
@@ -28,7 +28,7 @@ class Queue:
         self.comparator_id = comparator_id
 
 class QueueStudent:
-    def __init__(self, *, student_id: str, lab_id: str):
+    def __init__(self, *, student_id: int, lab_id: str):
         self.student_id = student_id
         self.lab_id = lab_id
 
@@ -38,7 +38,7 @@ class ComparatorType(Enum):
     TYPE2 = 2,
 
 class Comparator:
-    def __init__(self, *, id: str = None, owner_id: str | None = None, name: str, data: tp.List[ComparatorType]):
+    def __init__(self, *, id: str = None, owner_id: int | None = None, name: str, data: tp.List[ComparatorType]):
         self.id = id if id is not None else str(uuid.uuid4())
         self.owner_id = owner_id
         self.name = name
@@ -78,13 +78,13 @@ class Database:
             cursor.execute('''
                            CREATE TABLE IF NOT EXISTS groups (
                                id TEXT PRIMARY KEY,
-                               owner_id TEXT NOT NULL,
+                               owner_id BIGINT NOT NULL,
                                name TEXT NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS groups_owner_id ON groups(owner_id);
                            CREATE TABLE IF NOT EXISTS groups_students (
                                group_id TEXT NOT NULL REFERENCES groups(id),
-                               student_id TEXT NOT NULL,
+                               student_id BIGINT NOT NULL,
                                PRIMARY KEY (group_id, student_id)
                            );
                            CREATE INDEX IF NOT EXISTS groups_students_student_id ON groups_students(student_id);
@@ -96,7 +96,7 @@ class Database:
                            CREATE INDEX IF NOT EXISTS labs_group_id ON labs(group_id);
                            CREATE TABLE IF NOT EXISTS labs_results (
                                lab_id TEXT REFERENCES labs(id),
-                               student_id TEXT NOT NULL,
+                               student_id BIGINT NOT NULL,
                                attempts_count SMALLINT NOT NULL DEFAULT 0,
                                is_passed BOOLEAN NOT NULL DEFAULT FALSE,
                                PRIMARY KEY (lab_id, student_id)
@@ -104,7 +104,7 @@ class Database:
                            CREATE INDEX IF NOT EXISTS labs_results_student_id ON labs_results(student_id);
                            CREATE TABLE IF NOT EXISTS comparators(
                                id TEXT PRIMARY KEY,
-                               owner_id TEXT,
+                               owner_id BIGINT,
                                name TEXT NOT NULL,
                                data SMALLINT[] NOT NULL
                            );
@@ -119,7 +119,7 @@ class Database:
                            CREATE INDEX IF NOT EXISTS queues_group_id ON queues(group_id);
                            CREATE TABLE IF NOT EXISTS queues_subscribers (
                                queue_id TEXT NOT NULL REFERENCES queues(id),
-                               student_id TEXT NOT NULL,
+                               student_id BIGINT NOT NULL,
                                lab_id TEXT NOT NULL REFERENCES labs(id),
                                PRIMARY KEY (queue_id, student_id)
                            );
@@ -164,7 +164,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return group.id
     
-    def join_group(self, *, group_id: str, student_id: str) -> bool:
+    def join_group(self, *, group_id: str, student_id: int) -> bool:
         result = True
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
@@ -176,7 +176,16 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
     
-    def get_student_groups(self, *, student_id: str) -> tp.List[BriefGroup]:
+    def quit_group(self, *, group_id: str, student_id: int) -> bool:
+        result = True
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''DELETE FROM groups_students WHERE group_id = %s AND student_id = %s''', (group_id, student_id))
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+        return result
+    
+    def get_student_groups(self, *, student_id: int) -> tp.List[BriefGroup]:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -193,7 +202,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
     
-    def get_group_students(self, *, group_id: str) -> tp.List[str]:
+    def get_group_students(self, *, group_id: str) -> tp.List[int]:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -208,7 +217,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
     
-    def get_teacher_groups(self, *, teacher_id: str) -> tp.List[BriefGroup]:
+    def get_teacher_groups(self, *, teacher_id: int) -> tp.List[BriefGroup]:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -271,7 +280,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
 
-    def get_student_queues(self, *, student_id: str) -> tp.List[BriefQueue]:
+    def get_student_queues(self, *, student_id: int) -> tp.List[BriefQueue]:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -288,7 +297,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
 
-    def get_teacher_queues(self, *, teacher_id: str) -> tp.List[BriefQueue]:
+    def get_teacher_queues(self, *, teacher_id: int) -> tp.List[BriefQueue]:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -321,21 +330,21 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
 
-    def subscribe_queue(self, *, queue_id: str, student_id: str, lab_id: str) -> None:
+    def sign_in_queue(self, *, queue_id: str, student_id: int, lab_id: str) -> None:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''INSERT INTO queues_subscribers(queue_id, student_id, lab_id) VALUES (%s, %s, %s)''', (queue_id, student_id, lab_id))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
-    def unsubscribe_queue(self, *, queue_id: str, student_id: str, lab_id: str) -> None:
+    def sign_out_queue(self, *, queue_id: str, student_id: int, lab_id: str) -> None:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''DELETE FROM queues_subscribers WHERE queue_id = %s AND student_id = %s AND lab_id = %s''', (queue_id, student_id, lab_id))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
-    def rate_student(self, *, student_id: str, lab_id: str, is_passed: bool) -> None:
+    def rate_student(self, *, student_id: int, lab_id: str, is_passed: bool) -> None:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -347,7 +356,7 @@ class Database:
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
-    def get_student_passed_labs_count(self, *, group_id: str, student_id: str) -> int:
+    def get_student_passed_labs_count(self, *, group_id: str, student_id: int) -> int:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -364,7 +373,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
 
-    def get_student_lab_attempts_count(self, *, student_id: str, lab_id: str) -> int:
+    def get_student_lab_attempts_count(self, *, student_id: int, lab_id: str) -> int:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -418,7 +427,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
 
-    def get_teacher_comparators(self, *, teacher_id: str) -> tp.List[BriefComparator]:
+    def get_teacher_comparators(self, *, teacher_id: int) -> tp.List[BriefComparator]:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
