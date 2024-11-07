@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 
-from app.interface_student import StudentInterface
+from interface_student import StudentInterface
 from config import API_TOKEN
 from app.interface_educator import EducatorInterface
 from app.states import set_user_state, get_user_state, get_user_data, set_user_data, clear_user_data

@@ -1,9 +1,9 @@
 import sys
 from os import getenv
-#from dotenv import load_dotenv
-from db import Database
+# from dotenv import load_dotenv
+from db.db import Database
 
-#load_dotenv('../../.env')
+# load_dotenv('../../.env')
 
 PSQL_HOST = getenv('PSQL_HOST')
 PSQL_PORT = int(getenv('PSQL_PORT'))
