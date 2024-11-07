@@ -1,6 +1,6 @@
 from aiogram import Bot, types
 from app.tg.states import get_user_state, set_user_state, get_user_data, set_user_data, clear_user_data
-from app.api.student import Student, StudentJoinGroupException, StudentLeaveGroupException
+from app.api.student import Student, StudentJoinGroupException, StudentLeaveGroupException, StudentLabNotFoundException
 from app.db.database_config import db
 
 
@@ -150,10 +150,10 @@ class StudentInterface:
 
     async def enroll_on_review_queue(self, message: types.Message, queue_id: str, lab_id: str):
         try:
-            self.student.enroll_on_review_queue(queue_id, lab_id)
+            lab = self.student.enroll_on_review_queue(queue_id, lab_id)
             await self.bot.send_message(
                 message.chat.id,
-                f"Вы успешно записались в очередь '{queue_id}' на защиту лабы '{lab_id}'!",
+                f"Вы успешно записались в очередь '{queue_id}' на защиту {lab.number}-ой лабы '{lab.name}' с дедлайном {lab.deadline.isoformat()}!",
                 reply_markup=self.back_button()
             )
         except Exception as e:
@@ -168,7 +168,7 @@ class StudentInterface:
         set_user_data(message.from_user.id, 'enroll_review_queue_id', enroll_review_queue_id)
         set_user_state(message.from_user.id, 'student_enroll_on_review_queue_enter_queue_id')
         # TODO queue_id validation
-        await self.bot.send_message(message.chat.id, "Введите номер лабы которую вы хотите защитить:", reply_markup=self.back_button())
+        await self.bot.send_message(message.chat.id, "Введите id лабы которую вы хотите защитить:", reply_markup=self.back_button())
     
     async def enroll_on_review_queue_step3(self, message: types.Message):
         enroll_review_lab_id = message.text
@@ -181,13 +181,12 @@ class StudentInterface:
 
     async def reject_review_queue(self, message: types.Message, queue_id: str, lab_id: str):
         try:
-            self.student.reject_review_queue(queue_id, lab_id)
+            lab = self.student.reject_review_queue(queue_id, lab_id)
             await self.bot.send_message(
                 message.chat.id,
-                f"Вы успешно вышли из очереди '{queue_id}' на защиту лабы '{lab_id}'!",
+                f"Вы успешно вышли из очереди '{queue_id}' на защиту {lab.number}-ой лабы '{lab.name}' с дедлайном {lab.deadline.isoformat()}!",
                 reply_markup=self.back_button()
             )
-            print(f"delete from queue_subscribers where  queue_id = {queue_id} student_id = {self.student_tg_id} lab_id = {lab_id}")
         except Exception as e:
             await self.bot.send_message(
                 message.chat.id,
@@ -200,7 +199,7 @@ class StudentInterface:
         set_user_data(message.from_user.id, 'reject_review_queue_id', reject_review_queue_id)
         set_user_state(message.from_user.id, 'student_reject_review_queue_enter_queue_id')
         # TODO queue_id validation
-        await self.bot.send_message(message.chat.id, "Введите номер лабы по которой вы хотите отменить проверку:", reply_markup=self.back_button())
+        await self.bot.send_message(message.chat.id, "Введите id лабы по которой вы хотите отменить проверку:", reply_markup=self.back_button())
     
     async def reject_review_queue_step3(self, message: types.Message):
         reject_review_lab_id = message.text
@@ -215,7 +214,7 @@ class StudentInterface:
         try:
             queues = self.student.get_current_review_queues()
             if queues:
-                queues_text = '\n'.join([f"{queue.id}: {queue.name}" for queue in queues])
+                queues_text = '\n'.join([f"{i}. {queues[i].id}: {queues[i].name}" for i in range(len(queues))])
                 await self.bot.send_message(
                     message.chat.id,
                     f"Ваши текущие очереди на защиту:\n{queues_text}",
