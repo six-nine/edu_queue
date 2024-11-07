@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
@@ -8,6 +9,9 @@ from app.interface_student import StudentInterface
 from config import API_TOKEN
 from app.interface_educator import EducatorInterface
 from app.states import set_user_state, get_user_state, get_user_data, set_user_data, clear_user_data
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -32,7 +36,10 @@ async def handle_messages(message: types.Message):
         ])
         await message.answer("Вы студент или преподаватель?", reply_markup=keyboard)
     elif state == 'awaiting_invite_code':
-        await process_invite_code(message)
+        #await process_invite_code(message)
+        student_interface = StudentInterface(bot, message.from_user.id)
+        invite_code = message.text
+        await student_interface.process_invite_code(message, invite_code)
     elif state and state.startswith('educator_'):
         educator_interface = EducatorInterface(bot, message.from_user.id)
         await educator_interface.handle_text_message(message)
@@ -75,7 +82,7 @@ async def choose_role(callback_query: CallbackQuery, role: str):
     if role == "student":
         set_user_data(user_id, 'role', 'student')
         set_user_state(user_id, 'awaiting_invite_code')
-        student_interface = StudentInterface(bot, get_user_data(user_id).get('name'))
+        student_interface = StudentInterface(bot, user_id)
         await bot.send_message(
             callback_query.message.chat.id,
             "Введите invite-код для вступления в группу:",

@@ -1,20 +1,20 @@
 from aiogram import Bot, types
 from app.states import get_user_state, set_user_state, get_user_data, set_user_data, clear_user_data
 from app.api.student import Student
-''', StudentJoinGroupException, StudentLeaveGroupException'''
+''', StudentJoinGroupException, StudentLeaveGroupException)'''
+from app.db.database_config import db
 
 
 class StudentInterface:
-    def __init__(self, bot: Bot, student_name: str):
-        self.bot = bot
-        #self.database = Database() #добавить
-        self.student = Student(student_name)
+    def __init__(self, bot: Bot, student_tg_id: int):
+        self.bot=bot
+        self.student = Student(student_tg_id, db)
+        self.student_tg_id = student_tg_id
 
     async def process_invite_code(self, message: types.Message, invite_code: str):
         try:
-            invite_code_int = int(invite_code)
             student_tg_id = message.from_user.id
-            result = self.student.join_group(invite_code_int, student_tg_id)
+            result = self.student.join_group(invite_code, student_tg_id)
             '''--------'''
             if result:
                 await self.bot.send_message(
@@ -99,7 +99,7 @@ class StudentInterface:
 
     async def reject_review_queue(self, message: types.Message, queue_id: str, lab_id: str):
         try:
-            '''self.student.reject_review_queue(queue_id, lab_id)'''
+            '''await self.student.reject_review_queue(queue_id, lab_id)'''
             await self.bot.send_message(
                 message.chat.id,
                 "Вы успешно вышли из очереди на защиту!",
