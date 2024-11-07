@@ -1,12 +1,12 @@
 # EduQueue
 
-Some project description will be here ...
+Часто при записи в очередь на защиту лабораторных методика "кто первый встал -- того и тапки" кажется несправедливой. В целях решения этой проблемы предлагается Telegram-бот, в котором преподаватель может создавать очереди на сдачу с кастомными приоритетами.
 
 ## Build
 
 Steps on build.
 
-### Install dependencies
+### Команда для установки зависимостей
 
 From the root dir:
 Firstly, it's required to install dependencies and prepare scripts.
@@ -16,7 +16,7 @@ pip install .
 # or if it does not work, try `python -m pip install .`
 ```
 
-### Run project
+### Команда для запуска
 
 ```sh
 main
@@ -29,10 +29,10 @@ main
 pytest
 ```
 
-## Authors
+## Авторы
 
-- Person 1
-- Person 2
-- Person 3
-- Person 4
-- Person 5
+- Вячеслав Григорович
+- Максим Вуколов
+- Вадим Козлов
+- Дмитрий Соколов
+- Глеб Герлах
