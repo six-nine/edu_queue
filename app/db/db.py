@@ -3,7 +3,6 @@ import psycopg2.pool
 import typing as tp
 
 from app.models.models import *
-from app.api.comparator import Comparator
 
 class Database:
     def __init__(self, *, dbname: str, user: str, password: str, host: str, port: int, debug: bool = False):
@@ -41,6 +40,7 @@ class Database:
                                id TEXT PRIMARY KEY,
                                group_id TEXT NOT NULL REFERENCES groups(id),
                                name TEXT NOT NULL,
+                               number SMALLINT NOT NULL,
                                deadline TIMESTAMPTZ NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS labs_group_id ON labs(group_id);
@@ -119,12 +119,12 @@ class Database:
                     (%s, %s, %s);
                     '''
             if len(group.labs) > 0:
-                query += '''INSERT INTO labs(id, group_id, name, deadline) VALUES'''
+                query += '''INSERT INTO labs(id, group_id, name, number, deadline) VALUES'''
                 for i in range(len(group.labs)):
                     lab = group.labs[i]
                     if i != 0:
                         query += ', '
-                    query += "('" + lab.id + "', '" + group.id + "', '" + lab.name + "', '" + lab.deadline.astimezone().isoformat() + "')"
+                    query += "('" + lab.id + "', '" + group.id + "', '" + lab.name + "', '" + str(lab.number) + "', '" + lab.deadline.astimezone().isoformat() + "')"
                 query += ';'
             cursor.execute(query, (group.id, group.owner_id, group.name))
             psql_connection.commit()
@@ -135,8 +135,8 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           INSERT INTO labs(id, group_id, name, deadline) VALUES
-                           (%s, %s, %s, %s)''', (lab.id, group_id, lab.name, lab.deadline.astimezone().isoformat()))
+                           INSERT INTO labs(id, group_id, name, number, deadline) VALUES
+                           (%s, %s, %s, %s, %s)''', (lab.id, group_id, lab.name, lab.number, lab.deadline.astimezone().isoformat()))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
@@ -144,13 +144,13 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT id, group_id, name, deadline
+                           SELECT id, group_id, name, number, deadline
                            FROM labs
                            WHERE id = %s''', (lab_id, ))
             rows = cursor.fetchall()
             assert len(rows) == 1
             row = rows[0]
-            result = Lab(id=row[0], group_id=row[1], name=row[2], deadline=row[3])
+            result = Lab(id=row[0], group_id=row[1], name=row[2], number=row[3], deadline=row[4])
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
@@ -193,7 +193,7 @@ class Database:
         self.__connection_pool.putconn(psql_connection)
         return result
 
-    def get_group_students(self, *, group_id: str) -> tp.List[int]:
+    def get_group_students(self, *, group_id: str) -> tp.List[BriefUser]:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
@@ -387,10 +387,10 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             data_str = "{"
-            for i in range(len(comparator.data)):
+            for i in range(len(comparator.conditions)):
                 if i != 0:
                     data_str += ", "
-                data_str += str(comparator.data[i].value[0])
+                data_str += str(comparator.conditions[i].to_int())
             data_str += "}"
             cursor.execute('''
                            INSERT INTO comparators(id, owner_id, name, conditions) VALUES (%s, %s, %s, %s)
@@ -417,13 +417,7 @@ class Database:
             rows = cursor.fetchall()
             assert len(rows) == 1
             row = rows[0]
-            result = Comparator(
-                id=row[0], owner_id=row[1], name=row[2], conditions=row[3],
-                get_student_passed_labs_count=self.get_student_passed_labs_count,
-                get_lab_deadline=self.get_lab_deadline,
-                get_student_lab_attempts_count=self.get_student_lab_attempts_count,
-                get_num_of_missed_deadlines=self.get_num_of_missed_deadlines
-                )
+            result = Comparator(id=row[0], owner_id=row[1], name=row[2], conditions=row[3])
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
@@ -461,7 +455,35 @@ class Database:
         return result
     
     def get_lab_deadline(self, *, lab_id: str) -> datetime:
-        raise NotImplementedError()
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           SELECT deadline
+                           FROM labs
+                           WHERE id = %s
+                           ''', (lab_id, ))
+            rows = cursor.fetchall()
+            assert len(rows) == 1
+            row = rows[0]
+            result = row[0]
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+        return result
 
-    def get_num_of_missed_deadlines(self, *, student_id: str) -> int:
-        raise NotImplementedError()
+    def get_num_of_missed_deadlines(self, *, group_id: str, student_id: str) -> int:
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           SELECT COUNT(labs.id) - SUM(labs_results.is_passed)
+                           FROM labs
+                           LEFT JOIN labs_results
+                           ON labs.id = labs_result.lab_id
+                           WHERE group_id = %s AND student_id = %s
+                           ''', (group_id, student_id))
+            rows = cursor.fetchall()
+            assert len(rows) == 1
+            row = rows[0]
+            result = row[0]
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+        return result
