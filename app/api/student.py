@@ -62,14 +62,14 @@ class Student:
     def enroll_on_review_queue(self, queue_id: str, lab_id: str) -> Lab:
         try:
             self.database.sign_in_queue(queue_id=queue_id, student_id=self.student_tg_id, lab_id=lab_id)
-            return self.database.get_lab(lab_id)
+            return self.database.get_lab(lab_id=lab_id)
         except AssertionError as e:
             raise StudentLabNotFoundException(lab_id)
 
 
     def reject_review_queue(self, queue_id: str, lab_id: str) -> Lab:
         self.database.sign_out_queue(queue_id=queue_id, student_id=self.student_tg_id, lab_id=lab_id)
-        return self.database.get_lab(lab_id)
+        return self.database.get_lab(lab_id=lab_id)
 
 
     def get_current_review_queues(self) -> tp.List[BriefQueue]:
