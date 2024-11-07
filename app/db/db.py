@@ -145,7 +145,6 @@ class Database:
             cursor.execute('''
                            SELECT id, name
                            FROM groups
-                           JOIN groups_students
                            ON groups.id = groups_students.group_id
                            WHERE groups_students.student_id = %s''', (student_id, ))
             rows = cursor.fetchall()
@@ -412,3 +411,9 @@ class Database:
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
+
+    def get_lab_deadline(self, *, lab_id) -> datetime:
+        raise NotImplementedError()
+
+    def get_num_of_missed_deadlines(self, *, student_id) -> int:
+        raise NotImplementedError()

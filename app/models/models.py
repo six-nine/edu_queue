@@ -3,10 +3,11 @@ from enum import Enum
 import uuid
 import typing as tp
 
+
 class Lab:
-    def __init__(self, *, id: str = None, name: str, group_id: str = None, deadline: datetime):
+    def __init__(self, *, id: str = None, number: int, group_id: str = None, deadline: datetime):
         self.id = id if id is not None else str(uuid.uuid4())
-        self.name = name
+        self.number = number
         self.deadline = deadline
         self.group_id = group_id
 
