@@ -1,6 +1,8 @@
 import typing as tp
 from app.models.models import BriefQueue
 from app.db.db import Database
+from app.db.database_config import db
+
 
 class StudentJoinGroupException(Exception):
     def __init__(self, student_tg_id: int, invite_code: str) -> None:
@@ -25,17 +27,18 @@ class Student:
     def __init__(self, student_tg_id: int, database: Database) -> None:
         self.student_tg_id = student_tg_id
         self.database = database
+        # self.database = Database(dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASSWORD, host=PSQL_HOST, port=PSQL_PORT, debug=True)
         self.is_subscribed_review_queue_enroll_start_notifications = True
 
 
     def join_group(self, invite_code: str) -> None:
-        bool_result = self.database.join_group(invite_code, self.student_tg_id)
+        bool_result = self.database.join_group(group_id=invite_code, student_id=self.student_tg_id)
         if not bool_result:
             raise StudentJoinGroupException(self.student_tg_id, invite_code)
 
 
     def leave_group(self, invite_code: str) -> None:
-        bool_result = self.database.quit_group(invite_code, self.student_tg_id)
+        bool_result = self.database.quit_group(group_id=invite_code, student_id=self.student_tg_id)
         if not bool_result:
             raise StudentLeaveGroupException(self.student_tg_id, invite_code)
 
@@ -51,17 +54,17 @@ class Student:
 
 
     def enroll_on_review_queue(self, queue_id: str, lab_id: str) -> None:
-        self.database.sign_in_queue(queue_id, self.student_tg_id, lab_id)
+        self.database.sign_in_queue(queue_id=queue_id, student_id=self.student_tg_id, lab_id=lab_id)
 
 
     def reject_review_queue(self, queue_id: str, lab_id: str) -> None:
-        self.database.sign_out_queue(queue_id, self.student_tg_id, lab_id)
+        self.database.sign_out_queue(queue_id=queue_id, student_id=self.student_tg_id, lab_id=lab_id)
 
 
     def get_current_review_queues(self) -> tp.List[BriefQueue]:
-        return self.database.get_student_queues(self.student_tg_id)
+        return self.database.get_student_queues(student_id=self.student_tg_id)
 
 
     def get_review_queue_rules(self, queue_id: str) -> tp.List[str]:
-        queue_obj = self.database.get_queue(queue_id)
+        queue_obj = self.database.get_queue(queue_id=queue_id)
         return [t.name for t in self.database.get_comparator(queue_obj.comparator_id).data]
