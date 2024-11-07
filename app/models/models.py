@@ -26,8 +26,9 @@ class Queue:
         self.comparator_id = comparator_id
 
 class QueueStudent:
-    def __init__(self, *, student_id: int, lab_id: str):
+    def __init__(self, *, student_id: int, name: str, lab_id: str):
         self.student_id = student_id
+        self.name = name
         self.lab_id = lab_id
 
 class ComparatorType(Enum):
@@ -41,6 +42,11 @@ class Comparator:
         self.owner_id = owner_id
         self.name = name
         self.data = data
+
+class BriefUser:
+    def __init__(self, *, id: int, name: str):
+        self.id = id
+        self.name = name
 
 class BriefGroup:
     def __init__(self, *, id: str, name: str):

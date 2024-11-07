@@ -55,7 +55,7 @@ class Database:
                                id TEXT PRIMARY KEY,
                                owner_id BIGINT,
                                name TEXT NOT NULL,
-                               data SMALLINT[] NOT NULL
+                               conditions SMALLINT[] NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS comparators_owner_id ON comparators(owner_id);
                            CREATE TABLE IF NOT EXISTS queues (
@@ -74,7 +74,7 @@ class Database:
                            );
                            CREATE INDEX IF NOT EXISTS queues_subscribers_group_id ON queues_subscribers(student_id);
 
-                           INSERT INTO comparators(id, owner_id, name, data) VALUES
+                           INSERT INTO comparators(id, owner_id, name, conditions) VALUES
                            ('random_comparator', NULL, 'Random', %s)
                            ON CONFLICT(id) DO NOTHING;
                            ''', ("{" + "}",))
@@ -196,13 +196,15 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT student_id
+                           SELECT student_id, name
                            FROM groups_students
+                           JOIN users
+                           ON users.id = groups_students.student_id
                            WHERE group_id = %s''', (group_id, ))
             rows = cursor.fetchall()
             result = []
             for row in rows:
-                result.append(row[0])
+                result.append(BriefUser(id=row[0], name=row[1]))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
@@ -308,14 +310,16 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT student_id, lab_id
+                           SELECT student_id, name, lab_id
                            FROM queues_subscribers
+                           JOIN users
+                           ON queues_subscribers.student_id = users.id
                            WHERE queue_id = %s
                            ''', (queue_id, ))
             rows = cursor.fetchall()
             result = []
             for row in rows:
-                result.append(QueueStudent(student_id=row[0], lab_id=row[1]))
+                result.append(QueueStudent(student_id=row[0], name=row[1], lab_id=row[2]))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
@@ -388,7 +392,7 @@ class Database:
                 data_str += str(comparator.data[i].value[0])
             data_str += "}"
             cursor.execute('''
-                           INSERT INTO comparators(id, owner_id, name, data) VALUES (%s, %s, %s, %s)
+                           INSERT INTO comparators(id, owner_id, name, conditions) VALUES (%s, %s, %s, %s)
                            ''', (comparator.id, comparator.owner_id, comparator.name, data_str))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
@@ -404,7 +408,7 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT id, owner_id, name, data
+                           SELECT id, owner_id, name, conditions
                            FROM comparators
                            WHERE id = %s
                            LIMIT 1
