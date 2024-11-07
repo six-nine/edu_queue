@@ -139,6 +139,21 @@ class Database:
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
+    def get_lab(self, *, lab_id: str) -> Lab:
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           SELECT id, group_id, name, deadline
+                           FROM labs
+                           WHERE id = %s''', (lab_id, ))
+            rows = cursor.fetchall()
+            assert len(rows) == 1
+            row = rows[0]
+            result = Lab(id=row[0], group_id=row[1], name=row[2], deadline=row[3])
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+        return result
+
     def join_group(self, *, group_id: str, student_id: int) -> bool:
         result = True
         psql_connection = self.__connection_pool.getconn()
