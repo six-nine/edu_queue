@@ -3,6 +3,7 @@ import psycopg2.pool
 import typing as tp
 
 from app.models.models import *
+from app.api.comparator import Comparator
 
 class Database:
     def __init__(self, *, dbname: str, user: str, password: str, host: str, port: int, debug: bool = False):
@@ -20,15 +21,19 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
+                           CREATE TABLE IF NOT EXISTS users (
+                               id BIGINT PRIMARY KEY,
+                               name TEXT NOT NULL
+                           );
                            CREATE TABLE IF NOT EXISTS groups (
                                id TEXT PRIMARY KEY,
-                               owner_id BIGINT NOT NULL,
+                               owner_id BIGINT NOT NULL REFERENCES users(id),
                                name TEXT NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS groups_owner_id ON groups(owner_id);
                            CREATE TABLE IF NOT EXISTS groups_students (
                                group_id TEXT NOT NULL REFERENCES groups(id),
-                               student_id BIGINT NOT NULL,
+                               student_id BIGINT NOT NULL REFERENCES users(id),
                                PRIMARY KEY (group_id, student_id)
                            );
                            CREATE INDEX IF NOT EXISTS groups_students_student_id ON groups_students(student_id);
@@ -41,7 +46,7 @@ class Database:
                            CREATE INDEX IF NOT EXISTS labs_group_id ON labs(group_id);
                            CREATE TABLE IF NOT EXISTS labs_results (
                                lab_id TEXT REFERENCES labs(id),
-                               student_id BIGINT NOT NULL,
+                               student_id BIGINT NOT NULL REFERENCES users(id),
                                attempts_count SMALLINT NOT NULL DEFAULT 0,
                                is_passed BOOLEAN NOT NULL DEFAULT FALSE,
                                PRIMARY KEY (lab_id, student_id)
@@ -51,7 +56,7 @@ class Database:
                                id TEXT PRIMARY KEY,
                                owner_id BIGINT,
                                name TEXT NOT NULL,
-                               data SMALLINT[] NOT NULL
+                               conditions SMALLINT[] NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS comparators_owner_id ON comparators(owner_id);
                            CREATE TABLE IF NOT EXISTS queues (
@@ -64,12 +69,16 @@ class Database:
                            CREATE INDEX IF NOT EXISTS queues_group_id ON queues(group_id);
                            CREATE TABLE IF NOT EXISTS queues_subscribers (
                                queue_id TEXT NOT NULL REFERENCES queues(id),
-                               student_id BIGINT NOT NULL,
+                               student_id BIGINT NOT NULL REFERENCES users(id),
                                lab_id TEXT NOT NULL REFERENCES labs(id),
                                PRIMARY KEY (queue_id, student_id)
                            );
                            CREATE INDEX IF NOT EXISTS queues_subscribers_group_id ON queues_subscribers(student_id);
-                           ''')
+
+                           INSERT INTO comparators(id, owner_id, name, conditions) VALUES
+                           ('random_comparator', NULL, 'Random', %s)
+                           ON CONFLICT(id) DO NOTHING;
+                           ''', ("{" + "}",))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
@@ -77,6 +86,7 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
+                           DROP TABLE IF EXISTS users CASCADE;
                            DROP TABLE IF EXISTS groups CASCADE;
                            DROP TABLE IF EXISTS groups_students CASCADE;
                            DROP TABLE IF EXISTS labs CASCADE;
@@ -86,6 +96,18 @@ class Database:
                            DROP TABLE IF EXISTS comparators CASCADE;
                            DROP TABLE IF EXISTS system_comparators CASCADE;
                            ''')
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+
+    def create_user(self, *, user_id: int, name: str) -> None:
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           INSERT INTO users(id, name) VALUES
+                           (%s, %s)
+                           ON CONFLICT(id) DO UPDATE
+                           SET name = EXCLUDED.name
+                           ''', (user_id, name))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
@@ -117,6 +139,21 @@ class Database:
                            (%s, %s, %s, %s)''', (lab.id, group_id, lab.name, lab.deadline.astimezone().isoformat()))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
+
+    def get_lab(self, *, lab_id: str) -> Lab:
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           SELECT id, group_id, name, deadline
+                           FROM labs
+                           WHERE id = %s''', (lab_id, ))
+            rows = cursor.fetchall()
+            assert len(rows) == 1
+            row = rows[0]
+            result = Lab(id=row[0], group_id=row[1], name=row[2], deadline=row[3])
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+        return result
 
     def join_group(self, *, group_id: str, student_id: int) -> bool:
         result = True
@@ -160,13 +197,15 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT student_id
+                           SELECT student_id, name
                            FROM groups_students
+                           JOIN users
+                           ON users.id = groups_students.student_id
                            WHERE group_id = %s''', (group_id, ))
             rows = cursor.fetchall()
             result = []
             for row in rows:
-                result.append(row[0])
+                result.append(BriefUser(id=row[0], name=row[1]))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
@@ -272,14 +311,16 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT student_id, lab_id
+                           SELECT student_id, name, lab_id
                            FROM queues_subscribers
+                           JOIN users
+                           ON queues_subscribers.student_id = users.id
                            WHERE queue_id = %s
                            ''', (queue_id, ))
             rows = cursor.fetchall()
             result = []
             for row in rows:
-                result.append(QueueStudent(student_id=row[0], lab_id=row[1]))
+                result.append(QueueStudent(student_id=row[0], name=row[1], lab_id=row[2]))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
@@ -352,8 +393,8 @@ class Database:
                 data_str += str(comparator.data[i].value[0])
             data_str += "}"
             cursor.execute('''
-                           INSERT INTO comparators(id, owner_id, name, data) VALUES (%s, %s, %s, %s)
-                           ''', (comparator.id, comparator.owner_id if comparator.owner_id is not None else 'NULL', comparator.name, data_str))
+                           INSERT INTO comparators(id, owner_id, name, conditions) VALUES (%s, %s, %s, %s)
+                           ''', (comparator.id, comparator.owner_id, comparator.name, data_str))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
@@ -368,7 +409,7 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT id, owner_id, name, data
+                           SELECT id, owner_id, name, conditions
                            FROM comparators
                            WHERE id = %s
                            LIMIT 1
@@ -376,7 +417,13 @@ class Database:
             rows = cursor.fetchall()
             assert len(rows) == 1
             row = rows[0]
-            result = Comparator(id=row[0], owner_id=row[1], name=row[2], data=row[3])
+            result = Comparator(
+                id=row[0], owner_id=row[1], name=row[2], data=row[3],
+                get_student_passed_labs_count=self.get_student_passed_labs_count,
+                get_lab_deadline=self.get_lab_deadline,
+                get_student_lab_attempts_count=self.get_student_lab_attempts_count,
+                get_num_of_missed_deadlines=self.get_num_of_missed_deadlines
+                )
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
@@ -412,3 +459,9 @@ class Database:
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
         return result
+    
+    def get_lab_deadline(self, *, lab_id: str) -> datetime:
+        raise NotImplementedError()
+
+    def get_num_of_missed_deadlines(self, *, student_id: str) -> int:
+        raise NotImplementedError()
