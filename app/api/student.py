@@ -10,7 +10,7 @@ class StudentJoinGroupException(Exception):
         self.invite_code = invite_code
  
     def __str__(self) -> str:
-        return f"Не удалось добавить студента с student_tg_id = {self.student_tg_id} в группу с invite_code (group_id) = {self.invite_code}!"
+        return f"Не удалось добавить в группу с invite_code (group_id) = {self.invite_code}!"
 
 
 class StudentLeaveGroupException(Exception):
@@ -19,7 +19,7 @@ class StudentLeaveGroupException(Exception):
         self.invite_code = invite_code
  
     def __str__(self) -> str:
-        return f"Не удалось удалить студента с student_tg_id = {self.student_tg_id} из группы с invite_code (group_id) = {self.invite_code}!"
+        return f"Не удалось из группы с invite_code (group_id) = {self.invite_code}!"
 
 
 class StudentLabNotFoundException(Exception):
