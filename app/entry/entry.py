@@ -1,3 +1,4 @@
+
 import asyncio
 import logging
 
@@ -5,10 +6,10 @@ from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 
-from app.interface_student import StudentInterface
-from config import API_TOKEN
-from app.interface_educator import EducatorInterface
-from app.states import set_user_state, get_user_state, get_user_data, set_user_data, clear_user_data
+from app.tg.interface_student import StudentInterface
+from app.configs.config import API_TOKEN
+from app.tg.interface_educator import EducatorInterface
+from app.tg.states import set_user_state, get_user_state, get_user_data, set_user_data, clear_user_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -105,8 +106,8 @@ async def process_invite_code(message: types.Message):
 
 dp.include_router(router)
 
-async def main():
+async def async_main():
     await dp.start_polling(bot)
 
-if __name__ == '__main__':
+def main():
     asyncio.run(main())

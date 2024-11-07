@@ -1,6 +1,6 @@
 import typing as tp
-from models.models import BriefQueue
-from db.db import Database
+from app.models.models import BriefQueue
+from app.db.db import Database
 
 class StudentJoinGroupException(Exception):
     def __init__(self, student_tg_id: int, invite_code: str) -> None:

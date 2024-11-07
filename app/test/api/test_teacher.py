@@ -1,4 +1,4 @@
-from api.teacher import Teacher
+from app.api.teacher import Teacher
 from unittest import TestCase
 
 class TestTeacherApi(TestCase):

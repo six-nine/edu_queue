@@ -1,5 +1,5 @@
 from aiogram import Bot, types
-from app.states import get_user_state, set_user_state, get_user_data, set_user_data, clear_user_data
+from app.tg.states import get_user_state, set_user_state, get_user_data, set_user_data, clear_user_data
 from app.api.student import Student
 ''', StudentJoinGroupException, StudentLeaveGroupException)'''
 from app.db.database_config import db
