@@ -1,8 +1,8 @@
 import logging
 from typing import Optional
 from typing import List
-from db.db import Database
-from models.models import Queue, Comparator, BriefGroup, Lab
+from app.db.db import Database
+from app.models.models import Queue, Comparator, BriefGroup, Lab, Group
 
 
 class Teacher:

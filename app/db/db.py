@@ -2,7 +2,7 @@ import psycopg2
 import psycopg2.pool
 import typing as tp
 
-from models.models import *
+from app.models.models import *
 
 class Database:
     def __init__(self, *, dbname: str, user: str, password: str, host: str, port: int, debug: bool = False):
