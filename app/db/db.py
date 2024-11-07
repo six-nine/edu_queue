@@ -140,6 +140,21 @@ class Database:
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
+    def get_group_labs(self, *, group_id: str) -> tp.List[Lab]:
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           SELECT id, name, number, deadline
+                           FROM labs
+                           WHERE group_id = %s''', (group_id, ))
+            rows = cursor.fetchall()
+            result = []
+            for row in rows:
+                result.append(Lab(id=row[0], group_id=group_id, name=row[1], number=row[2], deadline=row[3]))
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+        return result
+
     def get_lab(self, *, lab_id: str) -> Lab:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
