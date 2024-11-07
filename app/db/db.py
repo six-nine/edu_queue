@@ -277,11 +277,11 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT id, name, date
-                           FROM queues
-                           JOIN groups_students
-                           ON groups_students.group_id = queues.group_id
-                           WHERE groups_students.student_id = %s''', (student_id, ))
+                           SELECT queue_id, name, date
+                           FROM queues_subscribers
+                           JOIN queues
+                           ON queues.id = queues_subscribers.queue_id
+                           WHERE student_id = %s''', (student_id, ))
             rows = cursor.fetchall()
             result = []
             for row in rows:
