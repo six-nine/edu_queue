@@ -1,22 +1,17 @@
 import asyncio
+
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
-from config import API_TOKEN
+from aiogram.types import CallbackQuery
+
 from app.interface_student import StudentInterface
+from config import API_TOKEN
 from app.interface_educator import EducatorInterface
+from app.states import set_user_state, get_user_state, get_user_data, set_user_data, clear_user_data
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 router = Router()
-
-user_states = {}
-user_data = {}
-
-def get_user_state(user_id):
-    return user_states.get(user_id)
-
-def set_user_state(user_id, state):
-    user_states[user_id] = state
 
 @router.message(Command("start"))
 async def send_welcome(message: types.Message):
@@ -27,62 +22,83 @@ async def send_welcome(message: types.Message):
 async def handle_messages(message: types.Message):
     state = get_user_state(message.from_user.id)
     if state == 'awaiting_name':
-        await process_name(message)
-    elif state == 'awaiting_role':
-        await choose_role(message)
+        set_user_data(message.from_user.id, 'name', message.text)
+        set_user_state(message.from_user.id, 'awaiting_role')
+        keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
+            [
+                types.InlineKeyboardButton(text="Студент", callback_data="role_student"),
+                types.InlineKeyboardButton(text="Преподаватель", callback_data="role_educator")
+            ]
+        ])
+        await message.answer("Вы студент или преподаватель?", reply_markup=keyboard)
     elif state == 'awaiting_invite_code':
         await process_invite_code(message)
+    elif state and state.startswith('educator_'):
+        educator_interface = EducatorInterface(bot, message.from_user.id)
+        await educator_interface.handle_text_message(message)
     else:
         await message.answer("Пожалуйста, введите /start для начала.")
 
-async def process_name(message: types.Message):
-    user_name = message.text
-    user_data[message.from_user.id] = {'name': user_name}
-    set_user_state(message.from_user.id, 'awaiting_role')
-    keyboard = types.ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                types.KeyboardButton(text="Студент"),
-                types.KeyboardButton(text="Преподаватель")
-            ]
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
-    await message.answer("Вы студент или преподаватель?", reply_markup=keyboard)
-
-async def choose_role(message: types.Message):
-    if message.text == "Студент":
-        user_data[message.from_user.id]['role'] = 'student'
-        set_user_state(message.from_user.id, 'awaiting_invite_code')
-        await message.answer("Введите invite-код для вступления в группу.")
-    elif message.text == "Преподаватель":
-        user_data[message.from_user.id]['role'] = 'educator'
-        set_user_state(message.from_user.id, 'awaiting_invite_code')
-        await message.answer("Введите код для преподавателей.")
+@router.callback_query()
+async def handle_callbacks(callback_query: CallbackQuery):
+    state = get_user_state(callback_query.from_user.id)
+    if callback_query.data.startswith('role_'):
+        role = callback_query.data.split('_')[1]
+        await choose_role(callback_query, role)
+    elif callback_query.data == "main_menu":
+        await handle_back_to_main(callback_query, state)
+    elif state and state.startswith('educator_'):
+        educator_interface = EducatorInterface(bot, callback_query.from_user.id)
+        await educator_interface.handle_menu_selection(callback_query)
     else:
-        await message.answer("Пожалуйста, выберите корректную роль из предложенных кнопок.")
+        await callback_query.answer("Действие не распознано.", show_alert=True)
+
+async def handle_back_to_main(callback_query: CallbackQuery, state: str):
+    user_id = callback_query.from_user.id
+    if state and state.startswith('educator_'):
+        set_user_state(user_id, 'educator_menu')
+        educator_interface = EducatorInterface(bot, user_id)
+        await educator_interface.show_menu(callback_query.message)
+    elif state == 'awaiting_invite_code':
+        set_user_state(user_id, 'awaiting_role')
+        keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
+            [
+                types.InlineKeyboardButton(text="Студент", callback_data="role_student"),
+                types.InlineKeyboardButton(text="Преподаватель", callback_data="role_educator")
+            ]
+        ])
+        await bot.send_message(callback_query.message.chat.id, "Вы студент или преподаватель?", reply_markup=keyboard)
+    await callback_query.answer()
+
+async def choose_role(callback_query: CallbackQuery, role: str):
+    user_id = callback_query.from_user.id
+    if role == "student":
+        set_user_data(user_id, 'role', 'student')
+        set_user_state(user_id, 'awaiting_invite_code')
+        student_interface = StudentInterface(bot, get_user_data(user_id).get('name'))
+        await bot.send_message(
+            callback_query.message.chat.id,
+            "Введите invite-код для вступления в группу:",
+            reply_markup=student_interface.back_button()
+        )
+    elif role == "educator":
+        set_user_data(user_id, 'role', 'educator')
+        set_user_state(user_id, 'educator_menu')
+        educator_interface = EducatorInterface(bot, user_id)
+        await educator_interface.show_menu(callback_query.message)
+    await callback_query.answer()
 
 async def process_invite_code(message: types.Message):
     invite_code = message.text
-    role = user_data[message.from_user.id]['role']
-    user_name = user_data[message.from_user.id]['name']
-    user_tg_id = message.from_user.id
-
+    role = get_user_data(message.from_user.id).get('role')
     if role == 'student':
-        student_interface = StudentInterface(bot, user_name)
+        student_name = get_user_data(message.from_user.id).get('name')
+        student_interface = StudentInterface(bot, student_name)
         await student_interface.process_invite_code(message, invite_code)
-    elif role == 'educator':
-        educator_interface = EducatorInterface(bot)
-        await educator_interface.process_invite_code(message, invite_code)
-    else:
-        await message.answer("Неизвестная роль. Пожалуйста, начните сначала с команды /start.")
 
-    set_user_state(message.from_user.id, None)
-    user_data.pop(message.from_user.id, None)
+dp.include_router(router)
 
 async def main():
-    dp.include_router(router)
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
