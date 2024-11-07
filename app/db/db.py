@@ -20,15 +20,19 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
+                           CREATE TABLE IF NOT EXISTS users (
+                               id BIGINT PRIMARY KEY,
+                               name TEXT NOT NULL
+                           );
                            CREATE TABLE IF NOT EXISTS groups (
                                id TEXT PRIMARY KEY,
-                               owner_id BIGINT NOT NULL,
+                               owner_id BIGINT NOT NULL REFERENCES users(id),
                                name TEXT NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS groups_owner_id ON groups(owner_id);
                            CREATE TABLE IF NOT EXISTS groups_students (
                                group_id TEXT NOT NULL REFERENCES groups(id),
-                               student_id BIGINT NOT NULL,
+                               student_id BIGINT NOT NULL REFERENCES users(id),
                                PRIMARY KEY (group_id, student_id)
                            );
                            CREATE INDEX IF NOT EXISTS groups_students_student_id ON groups_students(student_id);
@@ -41,7 +45,7 @@ class Database:
                            CREATE INDEX IF NOT EXISTS labs_group_id ON labs(group_id);
                            CREATE TABLE IF NOT EXISTS labs_results (
                                lab_id TEXT REFERENCES labs(id),
-                               student_id BIGINT NOT NULL,
+                               student_id BIGINT NOT NULL REFERENCES users(id),
                                attempts_count SMALLINT NOT NULL DEFAULT 0,
                                is_passed BOOLEAN NOT NULL DEFAULT FALSE,
                                PRIMARY KEY (lab_id, student_id)
@@ -64,12 +68,16 @@ class Database:
                            CREATE INDEX IF NOT EXISTS queues_group_id ON queues(group_id);
                            CREATE TABLE IF NOT EXISTS queues_subscribers (
                                queue_id TEXT NOT NULL REFERENCES queues(id),
-                               student_id BIGINT NOT NULL,
+                               student_id BIGINT NOT NULL REFERENCES users(id),
                                lab_id TEXT NOT NULL REFERENCES labs(id),
                                PRIMARY KEY (queue_id, student_id)
                            );
                            CREATE INDEX IF NOT EXISTS queues_subscribers_group_id ON queues_subscribers(student_id);
-                           ''')
+
+                           INSERT INTO comparators(id, owner_id, name, data) VALUES
+                           ('random_comparator', NULL, 'Random', %s)
+                           ON CONFLICT(id) DO NOTHING;
+                           ''', ("{" + "}",))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
@@ -77,6 +85,7 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
+                           DROP TABLE IF EXISTS users CASCADE;
                            DROP TABLE IF EXISTS groups CASCADE;
                            DROP TABLE IF EXISTS groups_students CASCADE;
                            DROP TABLE IF EXISTS labs CASCADE;
@@ -86,6 +95,18 @@ class Database:
                            DROP TABLE IF EXISTS comparators CASCADE;
                            DROP TABLE IF EXISTS system_comparators CASCADE;
                            ''')
+            psql_connection.commit()
+        self.__connection_pool.putconn(psql_connection)
+
+    def create_user(self, *, user_id: int, name: str) -> None:
+        psql_connection = self.__connection_pool.getconn()
+        with psql_connection.cursor() as cursor:
+            cursor.execute('''
+                           INSERT INTO users(id, name) VALUES
+                           (%s, %s)
+                           ON CONFLICT(id) DO UPDATE
+                           SET name = EXCLUDED.name
+                           ''', (user_id, name))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
@@ -353,7 +374,7 @@ class Database:
             data_str += "}"
             cursor.execute('''
                            INSERT INTO comparators(id, owner_id, name, data) VALUES (%s, %s, %s, %s)
-                           ''', (comparator.id, comparator.owner_id if comparator.owner_id is not None else 'NULL', comparator.name, data_str))
+                           ''', (comparator.id, comparator.owner_id, comparator.name, data_str))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
 
