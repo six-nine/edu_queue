@@ -26,6 +26,7 @@ async def send_welcome(message: types.Message):
 @router.message()
 async def handle_messages(message: types.Message):
     state = get_user_state(message.from_user.id)
+    print(f"handle_messages state {state}")
     if state == 'awaiting_name':
         set_user_data(message.from_user.id, 'name', message.text)
         set_user_state(message.from_user.id, 'awaiting_role')
@@ -36,11 +37,17 @@ async def handle_messages(message: types.Message):
             ]
         ])
         await message.answer("Вы студент или преподаватель?", reply_markup=keyboard)
-    elif state == 'awaiting_invite_code':
+    elif state == 'student_awaiting_invite_code':
         #await process_invite_code(message)
+        print(f"student_awaiting_invite_code")
         student_interface = StudentInterface(bot, message.from_user.id)
         invite_code = message.text
         await student_interface.process_invite_code(message, invite_code)
+    elif state == 'student_awaiting_invite_code_for_leaving_group':
+         print(f"student_awaiting_invite_code_for_leaving_group")
+         student_interface = StudentInterface(bot, message.from_user.id)
+         invite_code = message.text
+         await student_interface.leave_group(message, invite_code)
     elif state and state.startswith('educator_'):
         educator_interface = EducatorInterface(bot, message.from_user.id)
         await educator_interface.handle_text_message(message)
@@ -74,7 +81,7 @@ async def handle_back_to_main(callback_query: CallbackQuery, state: str):
         set_user_state(user_id, 'student_menu')
         student_interface = StudentInterface(bot, user_id)
         await student_interface.show_menu(callback_query.message)
-    elif state == 'awaiting_invite_code':
+    elif state == 'student_awaiting_invite_code':
         set_user_state(user_id, 'awaiting_role')
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
             [
