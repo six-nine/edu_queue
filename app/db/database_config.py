@@ -5,6 +5,7 @@ from app.configs.config import PSQL_HOST, PSQL_PORT, PSQL_USER, PSQL_PASSWORD, P
 
 #load_dotenv('../../.env')
 
+
 db = Database(dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASSWORD, host=PSQL_HOST, port=PSQL_PORT, debug=DEBUG)
 def get_db():
     return db
