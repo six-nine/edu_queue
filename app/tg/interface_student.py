@@ -39,8 +39,6 @@ class StudentInterface:
             print("join_group action")
             await self.process_invite_code(message, message.text)
         elif action == "leave_group":
-            # set_user_state(user_id, 'educator_creating_group_name')
-            # await self.bot.send_message(message.chat.id, "Введите название группы:", reply_markup=self.back_button())
             set_user_state(user_id, "student_awaiting_leaving_group_invite")
             await self.bot.send_message(
                 message.chat.id,
@@ -91,8 +89,6 @@ class StudentInterface:
         role = get_user_data(message.from_user.id).get('role')
         if role == 'student':
             self.student_name = get_user_data(message.from_user.id).get('name')
-            # student_interface = StudentInterface(bot, student_name)
-            # await student_interface.process_invite_code(message, invite_code)
             try:
                 # student_tg_id = message.from_user.id
                 self.student.join_group(invite_code)
