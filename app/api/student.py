@@ -1,5 +1,5 @@
 import typing as tp
-from app.models.models import BriefQueue
+from app.models.models import BriefQueue, Lab
 from app.db.db import Database
 from app.db.database_config import db
 
@@ -10,7 +10,7 @@ class StudentJoinGroupException(Exception):
         self.invite_code = invite_code
  
     def __str__(self) -> str:
-        return f"Failed attempt to join student with student_tg_id = {self.student_tg_id} in group with invite_code (group_id) = {self.invite_code}"
+        return f"Не удалось добавить в группу с invite_code (group_id) = {self.invite_code}!"
 
 
 class StudentLeaveGroupException(Exception):
@@ -19,8 +19,15 @@ class StudentLeaveGroupException(Exception):
         self.invite_code = invite_code
  
     def __str__(self) -> str:
-        return f"Failed attempt to remove student with student_tg_id = {self.student_tg_id} from group with invite_code (group_id) = {self.invite_code}"
+        return f"Не удалось из группы с invite_code (group_id) = {self.invite_code}!"
 
+
+class StudentLabNotFoundException(Exception):
+    def __init__(self, lab_id: str) -> None:
+        self.lab_id = lab_id
+ 
+    def __str__(self) -> str:
+        return f"Лаба с lab_id = {self.lab_id} не найдена!"
 
 class Student:
 
@@ -52,12 +59,17 @@ class Student:
     #     # DELETE FROM "notification subscribers table"
 
 
-    def enroll_on_review_queue(self, queue_id: str, lab_id: str) -> None:
-        self.database.sign_in_queue(queue_id=queue_id, student_id=self.student_tg_id, lab_id=lab_id)
+    def enroll_on_review_queue(self, queue_id: str, lab_id: str) -> Lab:
+        try:
+            self.database.sign_in_queue(queue_id=queue_id, student_id=self.student_tg_id, lab_id=lab_id)
+            return self.database.get_lab(lab_id)
+        except AssertionError as e:
+            raise StudentLabNotFoundException(lab_id)
 
 
-    def reject_review_queue(self, queue_id: str, lab_id: str) -> None:
+    def reject_review_queue(self, queue_id: str, lab_id: str) -> Lab:
         self.database.sign_out_queue(queue_id=queue_id, student_id=self.student_tg_id, lab_id=lab_id)
+        return self.database.get_lab(lab_id)
 
 
     def get_current_review_queues(self) -> tp.List[BriefQueue]:
