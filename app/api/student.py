@@ -2,6 +2,7 @@ import typing as tp
 from app.models.models import BriefQueue, Lab
 from app.db.db import Database
 from app.db.database_config import db
+from psycopg2.errors import UniqueViolation
 
 
 class StudentJoinGroupException(Exception):
@@ -11,6 +12,13 @@ class StudentJoinGroupException(Exception):
  
     def __str__(self) -> str:
         return f"Не удалось добавить в группу с invite_code (group_id) = {self.invite_code}!"
+    
+class StudentDuplicateGroupException(Exception):
+    def __init__(self, student_tg_id: int, invite_code: str) -> None:
+        self.invite_code = invite_code
+ 
+    def __str__(self) -> str:
+        return f"Ошибка, вы уже присутствуете в группе с invite_code (group_id) = {self.invite_code}!"
 
 
 class StudentLeaveGroupException(Exception):
@@ -38,9 +46,12 @@ class Student:
 
 
     def join_group(self, invite_code: str) -> None:
-        bool_result = self.database.join_group(group_id=invite_code, student_id=self.student_tg_id)
-        if not bool_result:
-            raise StudentJoinGroupException(self.student_tg_id, invite_code)
+        try:
+            bool_result = self.database.join_group(group_id=invite_code, student_id=self.student_tg_id)
+            if not bool_result:
+                raise StudentJoinGroupException(self.student_tg_id, invite_code)
+        except UniqueViolation as e:
+            raise StudentDuplicateGroupException(invite_code)
 
 
     def leave_group(self, invite_code: str) -> None:
