@@ -418,7 +418,7 @@ class Database:
             assert len(rows) == 1
             row = rows[0]
             result = Comparator(
-                id=row[0], owner_id=row[1], name=row[2], data=row[3],
+                id=row[0], owner_id=row[1], name=row[2], conditions=row[3],
                 get_student_passed_labs_count=self.get_student_passed_labs_count,
                 get_lab_deadline=self.get_lab_deadline,
                 get_student_lab_attempts_count=self.get_student_lab_attempts_count,
