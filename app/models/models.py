@@ -31,18 +31,6 @@ class QueueStudent:
         self.student_id = student_id
         self.lab_id = lab_id
 
-class ComparatorType(Enum):
-    TYPE0 = 0,
-    TYPE1 = 1,
-    TYPE2 = 2,
-
-class Comparator:
-    def __init__(self, *, id: str = None, owner_id: int | None = None, name: str, data: tp.List[ComparatorType]):
-        self.id = id if id is not None else str(uuid.uuid4())
-        self.owner_id = owner_id
-        self.name = name
-        self.data = data
-
 class BriefGroup:
     def __init__(self, *, id: str, name: str):
         self.id = id

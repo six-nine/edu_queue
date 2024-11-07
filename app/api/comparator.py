@@ -1,8 +1,10 @@
 from enum import Enum
 from dataclasses import dataclass
+import uuid
 from models.models import QueueStudent
 from db.db import Database
 from datetime import datetime
+
 
 class Comparator:
 
@@ -22,10 +24,23 @@ class Comparator:
         c_type: ConditionType
         c_order: ConditionOrder
 
+        def to_int(self) -> int:
+            return int(self.c_type) * 2 + int(self.c_order)
 
-    def __init__(self, database: Database):
+        @staticmethod
+        def from_int(int_repr: int) -> Comparator.Condition:
+            return Comparator.Condition(
+                c_type=Comparator.Condition.ConditionType(int_repr // 2),
+                c_order=Comparator.Condition.ConditionOrder(int_repr % 2)
+            )
+
+    def __init__(self, *, database: Database = None, id: str = None, owner_id: int | None = None, name: str, conditions: tp.List[int]):
         self._db = database
-        self._conditions: list[Comparator.Condition] = list()
+
+        self.conditions = list(map(Comparator.Condition.from_int, conditions))
+        self.id = id if id is not None else str(uuid.uuid4())
+        self.owner_id = owner_id
+        self.name = name
 
     def append_condition(self, condition: Comparator.Condition):
         if filter(self._conditions, lambda cond: cond.c_type == condition.c_type):
@@ -34,7 +49,6 @@ class Comparator:
         self._conditions.append(condition)
 
     def key(self, student: QueueStudent) -> int:
-
         def get_val() -> int:
             if condition.c_type == Comparator.Condition.ConditionType.NUM_OF_ACCEPTED_LABS:
                 return self._db.get_student_passed_labs_count()

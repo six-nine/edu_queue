@@ -51,7 +51,7 @@ class Database:
                                id TEXT PRIMARY KEY,
                                owner_id BIGINT,
                                name TEXT NOT NULL,
-                               data SMALLINT[] NOT NULL
+                               conditions SMALLINT[] NOT NULL
                            );
                            CREATE INDEX IF NOT EXISTS comparators_owner_id ON comparators(owner_id);
                            CREATE TABLE IF NOT EXISTS queues (
@@ -271,7 +271,7 @@ class Database:
         psql_connection = self.__connection_pool.getconn()
         with psql_connection.cursor() as cursor:
             cursor.execute('''
-                           SELECT student_id, lab_id
+                           SELECT student_id, lab_id,
                            FROM queues_subscribers
                            WHERE queue_id = %s
                            ''', (queue_id, ))
@@ -351,7 +351,7 @@ class Database:
                 data_str += str(comparator.data[i].value[0])
             data_str += "}"
             cursor.execute('''
-                           INSERT INTO comparators(id, owner_id, name, data) VALUES (%s, %s, %s, %s)
+                           INSERT INTO comparators(id, owner_id, name, conditions) VALUES (%s, %s, %s, %s)
                            ''', (comparator.id, comparator.owner_id if comparator.owner_id is not None else 'NULL', comparator.name, data_str))
             psql_connection.commit()
         self.__connection_pool.putconn(psql_connection)
