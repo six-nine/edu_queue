@@ -55,6 +55,9 @@ async def handle_callbacks(callback_query: CallbackQuery):
         await choose_role(callback_query, role)
     elif callback_query.data == "main_menu":
         await handle_back_to_main(callback_query, state)
+    elif state and state.startswith('student_'):
+        student_interface = StudentInterface(bot, callback_query.from_user.id)
+        await student_interface.handle_menu_selection(callback_query)
     elif state and state.startswith('educator_'):
         educator_interface = EducatorInterface(bot, callback_query.from_user.id)
         await educator_interface.handle_menu_selection(callback_query)
@@ -67,6 +70,10 @@ async def handle_back_to_main(callback_query: CallbackQuery, state: str):
         set_user_state(user_id, 'educator_menu')
         educator_interface = EducatorInterface(bot, user_id)
         await educator_interface.show_menu(callback_query.message)
+    elif state and state.startswith('student_'):
+        set_user_state(user_id, 'student_menu')
+        student_interface = StudentInterface(bot, user_id)
+        await student_interface.show_menu(callback_query.message)
     elif state == 'awaiting_invite_code':
         set_user_state(user_id, 'awaiting_role')
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
@@ -82,13 +89,15 @@ async def choose_role(callback_query: CallbackQuery, role: str):
     user_id = callback_query.from_user.id
     if role == "student":
         set_user_data(user_id, 'role', 'student')
-        set_user_state(user_id, 'awaiting_invite_code')
+        # set_user_state(user_id, 'awaiting_invite_code')
+        set_user_state(user_id, 'student_menu')
         student_interface = StudentInterface(bot, user_id)
-        await bot.send_message(
-            callback_query.message.chat.id,
-            "Введите invite-код для вступления в группу:",
-            reply_markup=student_interface.back_button()
-        )
+        await student_interface.show_menu(callback_query.message)
+        # await bot.send_message(
+        #     callback_query.message.chat.id,
+        #     "Введите invite-код для вступления в группу:",
+        #     reply_markup=student_interface.back_button()
+        # )
     elif role == "educator":
         set_user_data(user_id, 'role', 'educator')
         set_user_state(user_id, 'educator_menu')
@@ -96,13 +105,13 @@ async def choose_role(callback_query: CallbackQuery, role: str):
         await educator_interface.show_menu(callback_query.message)
     await callback_query.answer()
 
-async def process_invite_code(message: types.Message):
-    invite_code = message.text
-    role = get_user_data(message.from_user.id).get('role')
-    if role == 'student':
-        student_name = get_user_data(message.from_user.id).get('name')
-        student_interface = StudentInterface(bot, student_name)
-        await student_interface.process_invite_code(message, invite_code)
+# async def process_invite_code(message: types.Message):
+#     invite_code = message.text
+#     role = get_user_data(message.from_user.id).get('role')
+#     if role == 'student':
+#         student_name = get_user_data(message.from_user.id).get('name')
+#         student_interface = StudentInterface(bot, student_name)
+#         await student_interface.process_invite_code(message, invite_code)
 
 dp.include_router(router)
 
