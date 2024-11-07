@@ -10,6 +10,7 @@ from app.tg.interface_student import StudentInterface
 from app.configs.config import API_TOKEN
 from app.tg.interface_educator import EducatorInterface
 from app.tg.states import set_user_state, get_user_state, get_user_data, set_user_data, clear_user_data
+from app.db.database_config import db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ async def handle_messages(message: types.Message):
     print(f"handle_messages state {state}")
     if state == 'awaiting_name':
         set_user_data(message.from_user.id, 'name', message.text)
+        db.create_user(user_id=message.from_user.id, name=message.text)
         set_user_state(message.from_user.id, 'awaiting_role')
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
             [
