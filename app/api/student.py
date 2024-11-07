@@ -66,4 +66,4 @@ class Student:
 
     def get_review_queue_rules(self, queue_id: str) -> tp.List[str]:
         queue_obj = self.database.get_queue(queue_id=queue_id)
-        return [t.name for t in self.database.get_comparator(queue_obj.comparator_id).data]
+        return [t.name for t in self.database.get_comparator(comparator_id=queue_obj.comparator_id).data]
