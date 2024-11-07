@@ -5,8 +5,9 @@ from typing import List
 from app.db.db import Database
 from app.models.models import Queue, BriefQueue
 from app.models.models import BriefGroup, Group
-from app.models.models import Comparator, Lab, BriefComparator, QueueStudent
+from app.models.models import Lab, BriefComparator, QueueStudent
 from app.api.exceptions import InvalidFutureTimeException, EduQueueException
+from app.api.comparator import Comparator
 
 class Teacher:
     def __init__(self, id: int, db: Database):
@@ -21,7 +22,7 @@ class Teacher:
     def create_group(self, group_name: str, deadlines: List[str]) -> BriefGroup:
         deadlines = [datetime.strptime(it, '%Y-%m-%d %H:%M') for it in deadlines]
         group = Group(owner_id=self.id, name=group_name, labs=[])
-        labs = [Lab(name=f"Lab {i+1}", group_id=group.id, deadline=deadlines[i]) for i in range(len(deadlines))]
+        labs = [Lab(name=f"Lab {i+1}", number=i+1, group_id=group.id, deadline=deadlines[i]) for i in range(len(deadlines))]
         group.labs = labs
         groupid = self.db.create_group(group=group)
         return next(group for group in self.db.get_teacher_groups(teacher_id=self.id) if group.id == groupid)
@@ -102,7 +103,7 @@ class Teacher:
         return self.db.get_teacher_queues(teacher_id=self.id)
     
     def get_lab_by_id(self, lab_id: str) -> str:
-        return lab_id
+        return self.db.get_lab(lab_id=lab_id).name
 
     def start_nearest_queue_and_next_student(self) -> QueueStudent:
         queue = self.get_nearest_queue()

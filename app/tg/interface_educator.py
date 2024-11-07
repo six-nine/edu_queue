@@ -2,6 +2,8 @@ from aiogram import Bot, types
 from app.tg.states import get_user_state, set_user_state, get_user_data, set_user_data, clear_user_data
 from app.api.teacher import Teacher
 from app.db.database_config import db
+from app.api.comparator import Condition
+from typing import List
 
 class EducatorInterface:
     def __init__(self, bot: Bot, teacher_tg_id: int):
@@ -44,13 +46,11 @@ class EducatorInterface:
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=[buttons[i:i+1] for i in range(0, len(buttons), 1)])
         await self.bot.send_message(message.chat.id, "Выберите действие:", reply_markup=keyboard)
 
-    async def show_comparators_choice(self, message: types.Message, ):
-        buttons = [
-            types.InlineKeyboardButton(text="Зачет", callback_data="mark_student_passed"),
-            types.InlineKeyboardButton(text="Пересдача", callback_data="mark_student_failed"),
-        ]
-        keyboard = types.InlineKeyboardMarkup(inline_keyboard=[buttons[i:i+2] for i in range(0, len(buttons), 2)])
-        await self.bot.send_message(message.chat.id, f"Студент {student_name} с работой {lab}", reply_markup=keyboard)
+    async def show_comparators_choice(self, message: types.Message, comptypes: List[Condition.ConditionType]):
+        # TODO: add choice finish button
+        buttons = [types.InlineKeyboardButton(text=t.get_name(), callback_data=f"comparator_{t}") for t in comptypes]
+        keyboard = types.InlineKeyboardMarkup(inline_keyboard=[buttons[i:i+1] for i in range(0, len(buttons), 1)])
+        await self.bot.send_message(message.chat.id, f"Выберите наиболее приоритетное свойство", reply_markup=keyboard)
 
 
     async def handle_menu_selection(self, callback_query: types.CallbackQuery):
@@ -79,9 +79,9 @@ class EducatorInterface:
         elif action == "next_student":
             set_user_state(user_id, 'educator_next_student_queue_id')
             await self.next_student_in_queue_step_1(message)
-        elif action == "add_sorting_rule":
-            set_user_state(user_id, 'educator_add_sorting_rule_queue_id')
-            await self.bot.send_message(message.chat.id, "Введите ID очереди для добавления правила сортировки:", reply_markup=self.back_button())
+        # elif action == "add_sorting_rule":
+            # set_user_state(user_id, 'educator_add_sorting_rule_queue_id')
+            # await self.bot.send_message(message.chat.id, "Введите ID очереди для добавления правила сортировки:", reply_markup=self.back_button())
         elif action == "main_menu":
             set_user_state(user_id, 'educator_menu')
             await self.show_menu(message)
@@ -93,37 +93,37 @@ class EducatorInterface:
                 lab = self.teacher.get_lab_by_id(student.lab_id)
                 await self.bot.send_message(message.chat.id, f"Следующий студент: {student.student_id} с работой {lab}")
 
-            clear_user_data(message.from_user.id)
-            set_user_state(message.from_user.id, 'educator_menu')
+            clear_user_data(user_id)
+            set_user_state(user_id, 'educator_menu')
             await self.show_menu(message)
         elif action == 'create_queue_no':
-            clear_user_data(message.from_user.id)
-            set_user_state(message.from_user.id, 'educator_menu')
+            clear_user_data(user_id)
+            set_user_state(user_id, 'educator_menu')
             await self.show_menu(message)
         elif action == 'mark_student':
             student = self.teacher.get_current_student()
             if student == None:
                 await self.bot.send_message(message.chat.id, f"Некого оценивать")
-                clear_user_data(message.from_user.id)
-                set_user_state(message.from_user.id, 'educator_menu')
+                clear_user_data(user_id)
+                set_user_state(user_id, 'educator_menu')
                 await self.show_menu(message)
             else:
-                set_user_state(message.from_user.id, 'educator_mark_student')
+                set_user_state(user_id, 'educator_mark_student')
                 await self.show_rate_student_dialog(message, self.teacher.get_student_name(student.student_id), self.teacher.get_lab_by_id(student.lab_id))
         elif action == 'mark_student_passed':
             self.teacher.mark_student(True)
             await self.bot.send_message(message.chat.id, f"Ответ принят")
-            clear_user_data(message.from_user.id)
-            set_user_state(message.from_user.id, 'educator_menu')
+            clear_user_data(user_id)
+            set_user_state(user_id, 'educator_menu')
             await self.show_menu(message)
         elif action == 'mark_student_failed':
             self.teacher.mark_student(False)
             await self.bot.send_message(message.chat.id, f"Ответ принят")
-            clear_user_data(message.from_user.id)
-            set_user_state(message.from_user.id, 'educator_menu')
+            clear_user_data(user_id)
+            set_user_state(user_id, 'educator_menu')
             await self.show_menu(message)
         elif action == 'add_sorting_rule':
-            set_user_state(message.from_user.id, 'educator_add_sorting_rule_name')
+            set_user_state(user_id, 'educator_add_sorting_rule_name')
             await self.bot.send_message(message.chat.id, f"Введите название нового правила:")
 
             
@@ -156,10 +156,10 @@ class EducatorInterface:
             await self.delete_queue_step_1(message)
         elif state == 'educator_next_student_queue_id':
             await self.next_student_in_queue_step_1(message)
-        elif state == 'educator_next_student_queue_start_queue':
-            await self.next_student_in_queue_step_2(message)
         elif state == 'educator_add_sorting_rule_name':
             await self.add_sorting_rule_step_1(message)
+        elif state == 'educator_add_sorting_rule_add_type':
+            print("hi") # TODO
 
         else:
             await self.bot.send_message(message.chat.id, "Пожалуйста, используйте команды из меню.", reply_markup=self.back_button())
@@ -276,10 +276,12 @@ class EducatorInterface:
                 await self.show_yes_no_create_queue(message, f"Сдача еще не началась, начать сдачу очереди '{nearest_queue.name} - {nearest_queue.date}?")
 
     async def add_sorting_rule_step_1(self, message: types.Message):
+        set_user_state(message.from_user.id, "educator_add_sorting_rule_add_type")
         sorting_name = message.text
         set_user_data(message.from_user.id, 'sorting_rule_name', sorting_name)
-        await self.bot.send_message(message.chat.id, "", reply_markup=self.back_button())
-
+        comparators = get_user_data(message.from_user.id).get('comparators')
+        comparators = comparators if comparators != None else [t for t in Condition.ConditionType]
+        await self.show_comparators_choice(message, comparators)
 
 
     def back_button(self) -> types.InlineKeyboardMarkup:
