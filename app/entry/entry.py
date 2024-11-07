@@ -110,4 +110,4 @@ async def async_main():
     await dp.start_polling(bot)
 
 def main():
-    asyncio.run(main())
+    asyncio.run(async_main())
