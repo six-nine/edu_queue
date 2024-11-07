@@ -27,7 +27,6 @@ class Student:
     def __init__(self, student_tg_id: int, database: Database) -> None:
         self.student_tg_id = student_tg_id
         self.database = database
-        # self.database = Database(dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASSWORD, host=PSQL_HOST, port=PSQL_PORT, debug=True)
         self.is_subscribed_review_queue_enroll_start_notifications = True
 
 
