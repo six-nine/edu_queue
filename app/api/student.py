@@ -14,7 +14,7 @@ class StudentJoinGroupException(Exception):
         return f"Не удалось добавить в группу с invite_code (group_id) = {self.invite_code}!"
     
 class StudentDuplicateGroupException(Exception):
-    def __init__(self, student_tg_id: int, invite_code: str) -> None:
+    def __init__(self, invite_code: str) -> None:
         self.invite_code = invite_code
  
     def __str__(self) -> str:
