@@ -52,6 +52,10 @@ class EducatorInterface:
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=[buttons[i:i+1] for i in range(0, len(buttons), 1)])
         await self.bot.send_message(message.chat.id, f"Выберите наиболее приоритетное свойство", reply_markup=keyboard)
 
+    async def show_comparator_ordering(self, message: types.Message):
+        buttons = [types.InlineKeyboardButton(text=o.get_name(), callback_data=f"comparator_order_{o}") for o in Condition.ConditionOrder]
+        keyboard = types.InlineKeyboardMarkup(inline_keyboard=[buttons[i:i+1] for i in range(0, len(buttons), 1)])
+        await self.bot.send_message(message.chat.id, f"Выберите порядок сортировки", reply_markup=keyboard)
 
     async def handle_menu_selection(self, callback_query: types.CallbackQuery):
         action = callback_query.data
@@ -91,7 +95,7 @@ class EducatorInterface:
                 await self.bot.send_message(message.chat.id, "В очереди нет студентов")
             else:
                 lab = self.teacher.get_lab_by_id(student.lab_id)
-                await self.bot.send_message(message.chat.id, f"Следующий студент: {student.student_id} с работой {lab}")
+                await self.bot.send_message(message.chat.id, f"Следующий студент: {student.name} с работой {lab}")
 
             clear_user_data(user_id)
             set_user_state(user_id, 'educator_menu')
@@ -109,7 +113,7 @@ class EducatorInterface:
                 await self.show_menu(message)
             else:
                 set_user_state(user_id, 'educator_mark_student')
-                await self.show_rate_student_dialog(message, self.teacher.get_student_name(student.student_id), self.teacher.get_lab_by_id(student.lab_id))
+                await self.show_rate_student_dialog(message, student.name, self.teacher.get_lab_by_id(student.lab_id))
         elif action == 'mark_student_passed':
             self.teacher.mark_student(True)
             await self.bot.send_message(message.chat.id, f"Ответ принят")
@@ -125,6 +129,9 @@ class EducatorInterface:
         elif action == 'add_sorting_rule':
             set_user_state(user_id, 'educator_add_sorting_rule_name')
             await self.bot.send_message(message.chat.id, f"Введите название нового правила:")
+        elif action == 'comparator_order_ASCENDING' or action == 'comparator_order_DESCENDING':
+            is_ascending = action == 'comparator_order_ASCENDING'
+            
 
             
         else:
@@ -259,8 +266,8 @@ class EducatorInterface:
                 set_user_state(message.from_user.id, 'educator_menu')
                 await self.show_menu(message)
             else:
-                lab = self.teacher.get_lab_by_id(student)
-                await self.bot.send_message(message.chat.id, f"Следующий студент: {student.student_id} с работой {lab}")
+                lab = self.teacher.get_lab_by_id(student.lab_id)
+                await self.bot.send_message(message.chat.id, f"Следующий студент: {student.name} с работой {lab}")
                 clear_user_data(message.from_user.id)
                 set_user_state(message.from_user.id, 'educator_menu')
                 await self.show_menu(message)
@@ -300,11 +307,11 @@ class EducatorInterface:
     
     def get_students_list_str(self, group_id: str) -> str:
         students = self.teacher.get_group_students(group_id)
-        students_lines = "\n".join([f"{i+1}. {str(students[i])}" for i in range(len(students))])
+        students_lines = "\n".join([f"{i+1}. {students[i].name}" for i in range(len(students))])
         return students_lines
     
-    def student_id_from_num(self, group_id: str, num: int) -> str:
-        return self.teacher.get_group_students(group_id)[num - 1]
+    def student_id_from_num(self, group_id: str, num: int) -> int:
+        return self.teacher.get_group_students(group_id)[num - 1].id
     
     def get_comparators_list_str(self) -> str:
         comparators = self.teacher.get_all_comparators()

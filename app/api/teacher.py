@@ -5,17 +5,17 @@ from typing import List
 from app.db.db import Database
 from app.models.models import Queue, BriefQueue
 from app.models.models import BriefGroup, Group
-from app.models.models import Lab, BriefComparator, QueueStudent
+from app.models.models import Lab, BriefComparator, QueueStudent, BriefUser
 from app.api.exceptions import InvalidFutureTimeException, EduQueueException
 from app.api.comparator import Comparator
+
+current_students = dict()
+current_queues = dict()
 
 class Teacher:
     def __init__(self, id: int, db: Database):
         self.id = id
         self.db = db
-        self.current_queue = None
-        self.current_student = None
-
     """
     Creates new empty group.
     """
@@ -82,8 +82,7 @@ class Teacher:
         self.db.delete_queue(queue_id=queue_id)
 
     def is_queue_started_now(self) -> bool:
-        queue = self.current_queue
-        return queue != None
+        return current_queues.get(self.id) != None
     
     def get_nearest_queue(self) -> BriefQueue | None:
         sorted_queues = sorted(self.db.get_teacher_queues(teacher_id=self.id), key=lambda q: q.date)
@@ -107,32 +106,29 @@ class Teacher:
 
     def start_nearest_queue_and_next_student(self) -> QueueStudent:
         queue = self.get_nearest_queue()
-        self.current_queue = queue
+        current_queues[self.id] = queue
         if queue == None: return None
         students = self.db.get_queue_students(queue_id=queue.id)
         if len(students) == 0: return None
-        self.current_student = students[0]
+        current_students[self.id] = students[0]
         return students[0]
 
     def has_current_student(self) -> bool:
-        return self.current_student != None
+        return current_students.get(self.id) != None
     
     def get_current_student(self) -> QueueStudent | None:
-        return self.current_student
-    
-    def get_student_name(self, student_id: str) -> str:
-        return student_id # TODO: return name
+        return current_students.get(self.id)
 
     """
     :return: id of the next student in the current review queue if it is not empty, or None.
     """
     def pop_next_student_from_queue(self) -> Optional[QueueStudent]:
-        students = self.db.get_queue_students(queue_id=self.current_queue.id)
+        students = self.db.get_queue_students(queue_id=current_queues.get(self.id).id)
         if len(students) == 0:
-            self.db.delete_queue(self.current_queue.id)
-            self.current_queue = None
+            self.db.delete_queue(queue_id=current_queues.get(self.id).id)
+            current_queues[self.id] = None
             return None
-        self.current_student = students[0]
+        current_students[self.id] = students[0]
         return students[0]
     
     """
@@ -140,11 +136,11 @@ class Teacher:
     else mark current try as failed.
     """
     def mark_student(self, passed: bool):
-        if self.current_queue == None: return
-        if self.current_student == None: return
-        self.db.rate_student(student_id=self.current_student.student_id, lab_id=self.current_student.lab_id, is_passed=passed)
-        self.db.sign_out_queue(queue_id=self.current_queue.id, student_id=self.current_student.student_id, lab_id=self.current_student.lab_id)
-        self.current_student = None
+        if current_queues.get(self.id) == None: return
+        if current_students.get(self.id) == None: return
+        self.db.rate_student(student_id=current_students[self.id].student_id, lab_id=current_students[self.id].lab_id, is_passed=passed)
+        self.db.sign_out_queue(queue_id=current_queues[self.id].id, student_id=current_students[self.id].student_id, lab_id=current_students[self.id].lab_id)
+        current_students[self.id] = None
 
     """
     Finishes current class and clears queue if it was started.
@@ -152,7 +148,7 @@ class Teacher:
     def finish_queue(self):
         pass
 
-    def get_group_students(self, group_id: str) -> List[int]:
+    def get_group_students(self, group_id: str) -> List[BriefUser]:
         return self.db.get_group_students(group_id=group_id)
 
     """
