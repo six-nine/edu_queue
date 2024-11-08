@@ -52,6 +52,12 @@ class Condition:
         ASCENDING = 0
         DESCENDING = 1
 
+        def get_name(self):
+            if self == Condition.ConditionOrder.ASCENDING:
+                return "По возрастанию"
+            elif self == Condition.ConditionOrder.DESCENDING:
+                return "По убыванию"
+
     c_type: ConditionType
     c_order: ConditionOrder
 

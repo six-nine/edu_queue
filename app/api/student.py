@@ -1,5 +1,5 @@
 import typing as tp
-from app.models.models import BriefQueue, Lab
+from app.models.models import BriefQueue, Lab, BriefGroup
 from app.db.db import Database
 from app.db.database_config import db
 
@@ -74,7 +74,34 @@ class Student:
 
     def get_current_review_queues(self) -> tp.List[BriefQueue]:
         return self.database.get_student_queues(student_id=self.student_tg_id)
+    
+    def get_all_groups(self) -> tp.List[BriefGroup]:
+        return self.database.get_student_groups(student_id=self.student_tg_id)
 
+    def get_group_queues(self, group_id: str) -> tp.List[BriefQueue]:
+        return self.database.get_group_queues(group_id=group_id)
+    
+    def get_group_labs_count(self, group_id: str) -> int:
+        return len(self.get_group_labs(group_id=group_id))
+    
+    def get_group_labs(self, group_id: str) -> tp.List[Lab]:
+        return self.database.get_group_labs(group_id=group_id)
+    
+    def get_group_id_by_queue(self, queue_id: str) -> str:
+        return self.database.get_queue(queue_id=queue_id).group_id
+    
+    def is_enrolled(self, group_id: str, lab_num: int) -> bool:
+        q_ids = [q.id for q in self.database.get_student_queues(student_id=self.student_tg_id)]
+
+        group_labs = [l for l in self.get_group_labs(group_id=group_id) if l.number == lab_num]
+        if len(group_labs) == 0: return False
+        group_lab = group_labs[0]
+
+        for q_id in q_ids:
+            for q in self.database.get_queue_students(queue_id=q_id):
+                if q.lab_id == group_lab.id and q.student_id == self.student_tg_id: return True
+
+        return False
 
     def get_review_queue_rules(self, queue_id: str) -> tp.List[str]:
         queue_obj = self.database.get_queue(queue_id=queue_id)
